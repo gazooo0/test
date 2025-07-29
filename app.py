@@ -166,7 +166,7 @@ jj = place_codes.get(place, "")
 kk = f"{int(selected_row['開催回']):02d}"
 dd = f"{int(selected_row['日目']):02d}"
 race_id = f"{selected_row['年']}{jj}{kk}{dd}{race_num_int:02d}"
-st.markdown(f"\ud83d\udd22 **race_id**: {race_id}")
+st.markdown(f"✅ **race_id**: {race_id}")
 
 use_cache = st.checkbox("★ キャッシュが存在する場合は再利用する", value=True)
 
