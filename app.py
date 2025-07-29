@@ -166,9 +166,9 @@ jj = place_codes.get(place, "")
 kk = f"{int(selected_row['開催回']):02d}"
 dd = f"{int(selected_row['日目']):02d}"
 race_id = f"{selected_row['年']}{jj}{kk}{dd}{race_num_int:02d}"
-st.markdown(f"✅ **race_id**: {race_id}")
+st.markdown(f"**race_id**: {race_id}")
 
-use_cache = st.checkbox("★ キャッシュが存在する場合は再利用する", value=True)
+use_cache = st.checkbox("キャッシュが存在する場合は再利用する", value=True)
 
 if st.button("🔍 ウマ娘血統の馬サーチを開始"):
     cached_df = load_cached_result(race_id) if use_cache else None
@@ -184,7 +184,7 @@ if st.button("🔍 ウマ娘血統の馬サーチを開始"):
             st.markdown("---")
     else:
         horse_links = get_horse_links(race_id)
-        st.markdown(f"\ud83d\udc0e 出走馬数: {len(horse_links)}頭")
+        st.markdown(f"🏇 出走馬数: {len(horse_links)}頭")
         result_rows = []
         for idx, (name, link) in enumerate(horse_links.items(), 1):
             with st.spinner(f"{idx}頭目：{name} を照合中..."):
