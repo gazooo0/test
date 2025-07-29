@@ -116,18 +116,32 @@ def load_cached_result(race_id):
 def save_cached_result(race_id, df):
     df["race_id"] = race_id
 
-    # 既存データの削除（race_idが一致するもの）
-    records = sheet.get_all_records()
-    indices_to_delete = [i for i, r in enumerate(records) if r["race_id"] == race_id]
-    
-    # 注意：行番号は1ベース、ヘッダーが1行目にあるので +2 する
-    for idx in reversed(indices_to_delete):  # 後ろから削除（インデックスずれ防止）
-        sheet.delete_rows(idx + 2)
+    # 全データと行番号を取得（1行目はヘッダー）
+    all_values = sheet.get_all_values()  # 全行（ヘッダー含む）取得
+    headers = all_values[0]
+    data_rows = all_values[1:]
+
+    # race_idの列インデックスを取得
+    if "race_id" in headers:
+        race_id_col_idx = headers.index("race_id")
+    else:
+        st.error("Google Sheetsのヘッダーに 'race_id' 列がありません。")
+        return
+
+    # 該当race_idを含む行番号（2行目以降 = 実データ）の行インデックスを特定
+    rows_to_delete = [
+        i + 2 for i, row in enumerate(data_rows)
+        if len(row) > race_id_col_idx and row[race_id_col_idx] == race_id
+    ]
+
+    # 古い行を後ろから削除（行番号がずれるのを防ぐため）
+    for row_num in reversed(rows_to_delete):
+        sheet.delete_rows(row_num)
 
     # 新しいデータを追加
     sheet.append_rows(df.values.tolist(), value_input_option="USER_ENTERED")
-    
-    # ローカル保存（CSV）も更新
+
+    # ローカルCSVキャッシュも更新
     df.to_csv(get_cache_filename(race_id), index=False)
 
 # === UI ===
