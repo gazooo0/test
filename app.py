@@ -189,19 +189,19 @@ st.caption("■出走確定：木曜日の19時前後")
 st.caption("■枠順確定：レース前日の11時前後")
 use_cache_bool = use_cache == "利用する"
 
-selected_row = filtered.iloc[0]
-jj = place_codes.get(place, "")
-kk = f"{int(selected_row['開催回']):02d}"
-dd = f"{int(selected_row['日目']):02d}"
-race_id = f"{selected_row['年']}{jj}{kk}{dd}{race_num_int:02d}"
-st.markdown(f"**race_id**: {race_id}")
-
 if st.button("🔍 ウマ娘血統サーチ開始"):
     st.session_state.search_state = {
         "race_id": race_id,
         "use_cache": use_cache_bool,
         "triggered": True,
     }
+
+selected_row = filtered.iloc[0]
+jj = place_codes.get(place, "")
+kk = f"{int(selected_row['開催回']):02d}"
+dd = f"{int(selected_row['日目']):02d}"
+race_id = f"{selected_row['年']}{jj}{kk}{dd}{race_num_int:02d}"
+st.markdown(f"**race_id**: {race_id}")
 
 search_state = st.session_state.get("search_state", {})
 if search_state.get("triggered") and search_state.get("race_id") == race_id:
