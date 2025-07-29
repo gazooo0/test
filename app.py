@@ -168,6 +168,9 @@ if not place:
 
 st.markdown("### 🏁 レース番号を選択")
 race_num_int = st.selectbox("レース番号", list(range(1, 13)), format_func=lambda x: f"{x}R")
+st.caption("「重賞」(GⅢ・GⅡ・GⅠ)はメインレースとして11Rに行われます。")
+st.caption("避暑期間（新潟・中京：7/26(土)～8/17(日)）のメインは7Rです。")
+st.caption("検索時に情報公開されていれば特別登録馬や出走想定馬のサーチも可能です。")
 if not race_num_int:
     st.stop()
 
@@ -176,15 +179,21 @@ if filtered.empty:
     st.warning(f"⚠ {place} の情報が見つかりません")
     st.stop()
 
+use_cache = st.radio("###キャッシュの利用", ["利用する", "最新情報を取得する"], horizontal=True)
+st.caption("基本的には「利用する」を選択してください。過去に誰かが1回でも検索していればすぐ結果を表示します。")
+st.caption("下記のタイミングの時は古い情報を参照する可能性があるため「最新情報を取得する」を選択してください。")
+st.caption("■特別登録：前週日曜日の18時前後（G1レースは前々週に特別登録となりますが対応していません）")
+st.caption("■出走想定：水曜日の20時前後")
+st.caption("■出走確定：木曜日の19時前後")
+st.caption("■枠順確定：レース前日の11時前後")
+use_cache_bool = use_cache == "利用する"
+
 selected_row = filtered.iloc[0]
 jj = place_codes.get(place, "")
 kk = f"{int(selected_row['開催回']):02d}"
 dd = f"{int(selected_row['日目']):02d}"
 race_id = f"{selected_row['年']}{jj}{kk}{dd}{race_num_int:02d}"
 st.markdown(f"**race_id**: {race_id}")
-
-use_cache = st.radio("キャッシュ使用", ["再利用する", "常に最新取得"], horizontal=True)
-use_cache_bool = use_cache == "再利用する"
 
 if st.button("🔍 ウマ娘血統サーチ開始"):
     st.session_state.search_state = {
