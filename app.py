@@ -4,6 +4,7 @@ import unicodedata
 import re
 import time
 import os
+import json
 from bs4 import BeautifulSoup
 import requests
 import gspread
@@ -13,6 +14,23 @@ from google.oauth2.service_account import Credentials
 HEADERS = {"User-Agent": "Mozilla/5.0"}
 CACHE_DIR = "cache"
 os.makedirs(CACHE_DIR, exist_ok=True)
+
+# === Google Sheets設定 ===
+SHEET_ID = "1wMkpbOvqveVBkJSR85mpZcnKThYSEmusmsl710SaRKw"
+SHEET_NAME = "cache"
+SCOPE = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+
+# Render用：環境変数から認証情報を読み込む
+if "GOOGLE_SERVICE_ACCOUNT_JSON" in os.environ:
+    service_account_info = json.loads(os.environ["GOOGLE_SERVICE_ACCOUNT_JSON"])
+else:
+    # ローカル実行用
+    with open("service_account.json", "r", encoding="utf-8") as f:
+        service_account_info = json.load(f)
+
+credentials = Credentials.from_service_account_info(service_account_info, scopes=SCOPE)
+gc = gspread.authorize(credentials)
+sheet = gc.open_by_key(SHEET_ID).worksheet(SHEET_NAME)
 
 # === ウマ娘血統データの読み込み ===
 umamusume_df = pd.read_csv("umamusume.csv")
@@ -87,14 +105,21 @@ def get_cache_filename(race_id):
     return os.path.join(CACHE_DIR, f"{race_id}.csv")
 
 def load_cached_result(race_id):
+    # Google Sheets から検索
+    records = sheet.get_all_records()
+    matched = [r for r in records if r["race_id"] == race_id]
+    if matched:
+        return pd.DataFrame(matched)
+    # ローカル fallback
     filepath = get_cache_filename(race_id)
     if os.path.exists(filepath):
         return pd.read_csv(filepath)
     return None
 
 def save_cached_result(race_id, df):
-    filepath = get_cache_filename(race_id)
-    df.to_csv(filepath, index=False)
+    df["race_id"] = race_id
+    sheet.append_rows(df.values.tolist(), value_input_option="USER_ENTERED")
+    df.to_csv(get_cache_filename(race_id), index=False)
 
 # === UI ===
 st.title("ウマ娘血統🐎サーチ")
@@ -147,53 +172,11 @@ dd = f"{int(selected_row['日目']):02d}"
 race_id = f"{selected_row['年']}{jj}{kk}{dd}{race_num_int:02d}"
 st.markdown(f"🔢 **race_id**: {race_id}")
 
-# === Google Sheets設定 ===
-SHEET_ID = "1wMkpbOvqveVBkJSR85mpZcnKThYSEmusmsl710SaRKw"
-SHEET_NAME = "cache"
-
-def get_gsheet_client():
-    scopes = ["https://www.googleapis.com/auth/spreadsheets"]
-    creds = Credentials.from_service_account_file("service_account.json", scopes=scopes)
-    return gspread.authorize(creds)
-
-def load_cache_from_gsheet(race_id):
-    try:
-        gc = get_gsheet_client()
-        sh = gc.open_by_key(SHEET_ID)
-        worksheet = sh.worksheet(SHEET_NAME)
-        records = worksheet.get_all_records()
-        df = pd.DataFrame(records)
-        df = df[df["race_id"] == race_id]
-        if df.empty:
-            return None
-        return df.drop(columns=["race_id"])
-    except Exception as e:
-        st.error(f"キャッシュ読込エラー: {e}")
-        return None
-
-def save_cache_to_gsheet(race_id, df):
-    try:
-        df = df.copy()
-        df.insert(0, "race_id", race_id)
-        gc = get_gsheet_client()
-        sh = gc.open_by_key(SHEET_ID)
-        worksheet = sh.worksheet(SHEET_NAME)
-        existing = worksheet.get_all_values()
-        headers = existing[0] if existing else []
-        existing_df = pd.DataFrame(existing[1:], columns=headers) if len(existing) > 1 else pd.DataFrame(columns=headers)
-        # race_id重複を避ける
-        new_df = pd.concat([existing_df, df], ignore_index=True)
-        new_df = new_df.drop_duplicates(subset=["race_id", "馬名"], keep="last")
-        worksheet.clear()
-        worksheet.update([new_df.columns.tolist()] + new_df.values.tolist())
-    except Exception as e:
-        st.error(f"キャッシュ保存エラー: {e}")
-
-# === 検索ボタン押下時 ===
+# === 実行ボタン ===
 if st.button("🔍 ウマ娘血統の馬サーチを開始"):
-    cached_df = load_cache_from_gsheet(race_id)
+    cached_df = load_cached_result(race_id)
     if cached_df is not None:
-        st.success(f"✅ キャッシュから {len(cached_df)}表示")
+        st.success(f"✅ キャッシュから {len(cached_df)}頭を表示")
         for idx, row in cached_df.iterrows():
             st.markdown(f"""
 <div style='font-size:20px; font-weight:bold;'>{idx + 1}. {row["馬名"]}</div>
@@ -226,5 +209,4 @@ if st.button("🔍 ウマ娘血統の馬サーチを開始"):
             time.sleep(1.2)
         if result_rows:
             df = pd.DataFrame(result_rows)
-            save_cache_to_gsheet(race_id, df)
-            st.success("✅ Done! 検索結果保存")
+            save_cached_result(race_id, df)
