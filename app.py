@@ -133,11 +133,11 @@ future_7 = today + pd.Timedelta(days=7)
 schedule_df = schedule_df[schedule_df["日付"].between(past_31, future_7)]
 
 dates = sorted(schedule_df["日付"].dt.strftime("%Y-%m-%d").unique(), reverse=True)
-st.markdown("### \ud83d\uddd3\ufe0f 競馬開催日を選択")
+st.markdown("### 📅 競馬開催日を選択")
 selected_date = st.selectbox("（直近30日前後の開催まで遡って表示できます。）", dates)
 data_filtered = schedule_df[schedule_df["日付"].dt.strftime("%Y-%m-%d") == selected_date]
 
-st.markdown("### \ud83c\udfdf\ufe0f 競馬場を選択")
+st.markdown("### 🏟 競馬場を選択")
 place_codes = {"札幌": "01", "函館": "02", "福島": "03", "新潟": "04", "東京": "05",
                "中山": "06", "中京": "07", "京都": "08", "阪神": "09", "小倉": "10"}
 available_places = sorted(data_filtered["競馬場"].unique())
@@ -151,14 +151,14 @@ place = st.session_state.place
 if not place:
     st.stop()
 
-st.markdown("### \ud83c\udfbd レース番号を選択")
+st.markdown("### 🏁 レース番号を選択")
 race_num_int = st.selectbox("レース番号を選んでください", list(range(1, 13)), format_func=lambda x: f"{x}R")
 if not race_num_int:
     st.stop()
 
 filtered = data_filtered[data_filtered["競馬場"] == place]
 if filtered.empty:
-    st.warning(f"\u26a0\ufe0f {place} 競馬のレース情報が見つかりませんでした。")
+    st.warning(f"⚠ {place} 競馬のレース情報が見つかりませんでした。")
     st.stop()
 
 selected_row = filtered.iloc[0]
@@ -168,13 +168,13 @@ dd = f"{int(selected_row['日目']):02d}"
 race_id = f"{selected_row['年']}{jj}{kk}{dd}{race_num_int:02d}"
 st.markdown(f"\ud83d\udd22 **race_id**: {race_id}")
 
-use_cache = st.checkbox("\u2705 キャッシュが存在する場合は再利用する", value=True)
+use_cache = st.checkbox("★ キャッシュが存在する場合は再利用する", value=True)
 
-if st.button("\ud83d\udd0d ウマ娘血統の馬サーチを開始"):
+if st.button("🔍 ウマ娘血統の馬サーチを開始"):
     cached_df = load_cached_result(race_id) if use_cache else None
 
     if cached_df is not None:
-        st.success(f"\u2705 キャッシュから {len(cached_df)}頭を表示")
+        st.success(f"✅ キャッシュから {len(cached_df)}頭を表示")
         for idx, row in cached_df.iterrows():
             st.markdown(f"""
 <div style='font-size:20px; font-weight:bold;'>{idx + 1}. {row["馬名"]}</div>
