@@ -121,20 +121,17 @@ def save_cached_result(race_id, df):
     headers = all_values[0]
     data_rows = all_values[1:]
 
-    # race_id列インデックスを特定
     if "race_id" in headers:
         race_id_col_idx = headers.index("race_id")
     else:
         st.error("Google Sheetsのヘッダーに 'race_id' 列がありません。")
         return
 
-    # 削除対象行番号（2行目以降）
     rows_to_delete = [
         i + 2 for i, row in enumerate(data_rows)
         if len(row) > race_id_col_idx and row[race_id_col_idx] == race_id
     ]
 
-    # 一括削除リクエスト（行番号が連続していない場合は逆順で個別）
     if rows_to_delete:
         requests = [
             {
@@ -150,14 +147,11 @@ def save_cached_result(race_id, df):
             for row_num in sorted(rows_to_delete, reverse=True)
         ]
         sheet.spreadsheet.batch_update({"requests": requests})
-        time.sleep(1.0)  # クォータ超過対策
+        time.sleep(1.0)
 
-    # 新規追加
     sheet.append_rows(df.values.tolist(), value_input_option="USER_ENTERED")
-
-    # ローカルキャッシュ保存
     df.to_csv(get_cache_filename(race_id), index=False)
-    
+
 # === UI ===
 st.title("ウマ娘血統🐎サーチ")
 
@@ -208,10 +202,11 @@ dd = f"{int(selected_row['日目']):02d}"
 race_id = f"{selected_row['年']}{jj}{kk}{dd}{race_num_int:02d}"
 st.markdown(f"**race_id**: {race_id}")
 
-use_cache = st.checkbox("キャッシュが存在する場合は再利用する", value=True)
+use_cache = st.radio("キャッシュが存在する場合の動作", ["再利用する", "常に最新を取得する"], horizontal=True)
+use_cache_bool = use_cache == "再利用する"
 
 if st.button("🔍 ウマ娘血統の馬サーチを開始"):
-    cached_df = load_cached_result(race_id) if use_cache else None
+    cached_df = load_cached_result(race_id) if use_cache_bool else None
 
     if cached_df is not None:
         st.success(f"✅ キャッシュから {len(cached_df)}頭を表示")
