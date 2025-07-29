@@ -136,7 +136,6 @@ def save_cached_result(race_id, df):
 
 # === Streamlit UI ===
 st.title("ウマ娘血統🐎サーチ")
-
 schedule_df = pd.read_csv("jra_2025_keibabook_schedule.csv")
 schedule_df["日付"] = pd.to_datetime(
     schedule_df["年"].astype(str) + "/" + schedule_df["月日(曜日)"].str.extract(r"(\d{2}/\d{2})")[0],
