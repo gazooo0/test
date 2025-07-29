@@ -130,6 +130,7 @@ def save_cached_result(race_id, df):
                 }}} for row in sorted(rows_to_delete, reverse=True)]
             sheet.spreadsheet.batch_update({"requests": requests})
             time.sleep(1.0)
+            df = df[["馬名", "該当数", "該当箇所", "race_id"]]
         sheet.append_rows(df.values.tolist(), value_input_option="USER_ENTERED")
     except Exception as e:
         st.error(f"キャッシュ保存エラー: {e}")
@@ -170,17 +171,23 @@ race_num_int = st.selectbox("レース番号", list(range(1, 13)), format_func=l
 st.markdown("""
 <div style='line-height: 1.5; font-size: 0,8em; color: gray;'>
 <b>● 「重賞」(GⅢ・GⅡ・GⅠ)はメインレースとして11Rに行われます。<br>
-●　避暑期間（新潟・中京：7/26(土)～8/17(日)）のメインは7Rです。</b><br>
-●　検索時に情報公開されていれば特別登録馬や出走想定馬のサーチも可能です。<br><br>
+●　避暑期間（新潟・中京：7/26(土)～8/17(日)）のメインは7Rです。</b><br><br>
 </div>
 """, unsafe_allow_html=True)
-
-if not race_num_int:
-    st.stop()
 
 filtered = data_filtered[data_filtered["競馬場"] == place]
 if filtered.empty:
     st.warning(f"⚠ {place} の情報が見つかりません")
+    st.stop()
+selected_row = filtered.iloc[0]
+
+# race_id を生成
+jj = place_codes.get(place, "")
+kk = f"{int(selected_row['開催回']):02d}"
+dd = f"{int(selected_row['日目']):02d}"
+race_id = f"{selected_row['年']}{jj}{kk}{dd}{race_num_int:02d}"
+
+if not race_num_int:
     st.stop()
 
 st.markdown("### 💾 キャッシュの利用")
@@ -212,13 +219,6 @@ if st.button("🔍 ウマ娘血統サーチ開始"):
         "use_cache": use_cache_bool,
         "triggered": True,
     }
-
-selected_row = filtered.iloc[0]
-jj = place_codes.get(place, "")
-kk = f"{int(selected_row['開催回']):02d}"
-dd = f"{int(selected_row['日目']):02d}"
-race_id = f"{selected_row['年']}{jj}{kk}{dd}{race_num_int:02d}"
-st.markdown(f"**race_id**: {race_id}")
 
 search_state = st.session_state.get("search_state", {})
 if search_state.get("triggered") and search_state.get("race_id") == race_id:
