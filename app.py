@@ -202,11 +202,18 @@ dd = f"{int(selected_row['日目']):02d}"
 race_id = f"{selected_row['年']}{jj}{kk}{dd}{race_num_int:02d}"
 st.markdown(f"**race_id**: {race_id}")
 
-use_cache = st.radio("キャッシュが存在する場合の動作", ["再利用する", "常に最新を取得する"], horizontal=True)
-use_cache_bool = use_cache == "再利用する"
+use_cache = st.radio("キャッシュが存在する場合の動作", ["再利用する", "常に最新を取得する"], horizontal=True, key="cache_option")
+use_cache_bool = st.session_state.cache_option == "再利用する"
 
-if st.button("🔍 ウマ娘血統の馬サーチを開始"):
-    cached_df = load_cached_result(race_id) if use_cache_bool else None
+if st.button("🔍 ウマ娘血統の馬サーチを開始", key="run_search"):
+    st.session_state.run_search = True
+    st.session_state.current_race_id = race_id
+    st.session_state.use_cache_flag = use_cache_bool
+
+# 検索条件一致かつボタンが押された状態
+if st.session_state.get("run_search") and st.session_state.get("current_race_id") == race_id:
+    use_cache_flag = st.session_state.get("use_cache_flag", True)
+    cached_df = load_cached_result(race_id) if use_cache_flag else None
 
     if cached_df is not None:
         st.success(f"✅ キャッシュから {len(cached_df)}頭を表示")
