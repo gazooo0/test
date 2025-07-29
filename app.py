@@ -116,34 +116,48 @@ def load_cached_result(race_id):
 def save_cached_result(race_id, df):
     df["race_id"] = race_id
 
-    # 全データと行番号を取得（1行目はヘッダー）
-    all_values = sheet.get_all_values()  # 全行（ヘッダー含む）取得
+    # 全データと行番号を取得
+    all_values = sheet.get_all_values()
     headers = all_values[0]
     data_rows = all_values[1:]
 
-    # race_idの列インデックスを取得
+    # race_id列インデックスを特定
     if "race_id" in headers:
         race_id_col_idx = headers.index("race_id")
     else:
         st.error("Google Sheetsのヘッダーに 'race_id' 列がありません。")
         return
 
-    # 該当race_idを含む行番号（2行目以降 = 実データ）の行インデックスを特定
+    # 削除対象行番号（2行目以降）
     rows_to_delete = [
         i + 2 for i, row in enumerate(data_rows)
         if len(row) > race_id_col_idx and row[race_id_col_idx] == race_id
     ]
 
-    # 古い行を後ろから削除（行番号がずれるのを防ぐため）
-    for row_num in reversed(rows_to_delete):
-        sheet.delete_rows(row_num)
+    # 一括削除リクエスト（行番号が連続していない場合は逆順で個別）
+    if rows_to_delete:
+        requests = [
+            {
+                "deleteDimension": {
+                    "range": {
+                        "sheetId": sheet.id,
+                        "dimension": "ROWS",
+                        "startIndex": row_num - 1,
+                        "endIndex": row_num,
+                    }
+                }
+            }
+            for row_num in sorted(rows_to_delete, reverse=True)
+        ]
+        sheet.spreadsheet.batch_update({"requests": requests})
+        time.sleep(1.0)  # クォータ超過対策
 
-    # 新しいデータを追加
+    # 新規追加
     sheet.append_rows(df.values.tolist(), value_input_option="USER_ENTERED")
 
-    # ローカルCSVキャッシュも更新
+    # ローカルキャッシュ保存
     df.to_csv(get_cache_filename(race_id), index=False)
-
+    
 # === UI ===
 st.title("ウマ娘血統🐎サーチ")
 
