@@ -185,7 +185,6 @@ if filtered.empty:
     st.stop()
 
 st.markdown("### 💾 キャッシュの利用")
-
 st.markdown("""
 <div style='line-height: 1.2; font-size: 0.9em; color: gray;'>
 <b>基本的には「利用する」を選択してください。過去に誰かが1回でも検索していればすぐ結果を表示します。<br><br>
