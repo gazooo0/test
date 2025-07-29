@@ -171,7 +171,7 @@ st.markdown("### 📅 競馬開催日を選択")
 selected_date = st.selectbox("（直近30日前後の開催まで遡って表示できます。）", dates)
 data_filtered = schedule_df[schedule_df["日付"].dt.strftime("%Y-%m-%d") == selected_date]
 
-st.markdown("### 🏟 競馬場を選択")
+st.markdown("### 🌎 競馬場を選択")
 place_codes = {"札幌": "01", "函館": "02", "福島": "03", "新潟": "04", "東京": "05",
                "中山": "06", "中京": "07", "京都": "08", "阪神": "09", "小倉": "10"}
 available_places = sorted(data_filtered["競馬場"].unique())
@@ -205,12 +205,11 @@ st.markdown(f"**race_id**: {race_id}")
 use_cache = st.radio("キャッシュが存在する場合の動作", ["再利用する", "常に最新を取得する"], horizontal=True, key="cache_option")
 use_cache_bool = st.session_state.cache_option == "再利用する"
 
-if st.button("🔍 ウマ娘血統の馬サーチを開始", key="run_search"):
+if st.button("🔍 ウマ娘血統の馬サーチを開始", key="search_button"):
     st.session_state.run_search = True
     st.session_state.current_race_id = race_id
     st.session_state.use_cache_flag = use_cache_bool
 
-# 検索条件一致かつボタンが押された状態
 if st.session_state.get("run_search") and st.session_state.get("current_race_id") == race_id:
     use_cache_flag = st.session_state.get("use_cache_flag", True)
     cached_df = load_cached_result(race_id) if use_cache_flag else None
