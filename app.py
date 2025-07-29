@@ -21,8 +21,8 @@ SHEET_NAME = "cache"
 SCOPE = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 
 # Render用：環境変数から認証情報を読み込む
-if "GOOGLE_SERVICE_ACCOUNT_JSON" in os.environ:
-    service_account_info = json.loads(os.environ["GOOGLE_SERVICE_ACCOUNT_JSON"])
+if "GOOGLE_SERVICE_JSON" in os.environ:
+    service_account_info = json.loads(os.environ["GOOGLE_SERVICE_JSON"])
 else:
     # ローカル実行用
     with open("service_account.json", "r", encoding="utf-8") as f:
