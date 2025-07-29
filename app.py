@@ -10,16 +10,12 @@ import requests
 import gspread
 from google.oauth2.service_account import Credentials
 
-# === 設定 ===
-HEADERS = {"User-Agent": "Mozilla/5.0"}
-CACHE_DIR = "cache"
-os.makedirs(CACHE_DIR, exist_ok=True)
-
 # === Google Sheets設定 ===
 SHEET_ID = "1wMkpbOvqveVBkJSR85mpZcnKThYSEmusmsl710SaRKw"
 SHEET_NAME = "cache"
 SCOPE = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 
+# 認証情報の読み込み
 if "GOOGLE_SERVICE_JSON" in os.environ:
     service_account_info = json.loads(os.environ["GOOGLE_SERVICE_JSON"])
 else:
@@ -30,7 +26,10 @@ credentials = Credentials.from_service_account_info(service_account_info, scopes
 gc = gspread.authorize(credentials)
 sheet = gc.open_by_key(SHEET_ID).worksheet(SHEET_NAME)
 
-# === ウマ娘血統データの読み込み ===
+# === 設定 ===
+HEADERS = {"User-Agent": "Mozilla/5.0"}
+
+# === ウマ娘血統データ ===
 umamusume_df = pd.read_csv("umamusume.csv")
 image_dict = dict(zip(umamusume_df["kettou"], umamusume_df["url"]))
 umamusume_bloodlines = set(umamusume_df["kettou"].dropna().astype(str))
@@ -39,7 +38,8 @@ normalized_umamusume = {unicodedata.normalize("NFKC", n).strip().lower() for n i
 # === 血統位置ラベル ===
 def generate_position_labels():
     def dfs(pos, depth, max_depth):
-        if depth > max_depth: return []
+        if depth > max_depth:
+            return []
         result = [pos]
         result += dfs(pos + "父", depth + 1, max_depth)
         result += dfs(pos + "母", depth + 1, max_depth)
@@ -91,72 +91,56 @@ def match_umamusume(pedigree_dict):
         if key in normalized_umamusume:
             img_url = image_dict.get(name, "")
             if img_url:
-                matched.append(
-                    f"<img src='{img_url}' width='100' style='vertical-align:middle;margin-right:8px;'>【{pos}】{name}"
-                )
+                matched.append(f"<img src='{img_url}' width='100' style='vertical-align:middle;margin-right:8px;'>【{pos}】{name}")
             else:
                 matched.append(f"【{pos}】{name}")
     return matched
 
-# === キャッシュ処理 ===
-def get_cache_filename(race_id):
-    return os.path.join(CACHE_DIR, f"{race_id}.csv")
-
+# === Google Sheets キャッシュ ===
 def load_cached_result(race_id):
-    records = sheet.get_all_records()
-    matched = [r for r in records if r["race_id"] == race_id]
-    if matched:
-        return pd.DataFrame(matched)
-    filepath = get_cache_filename(race_id)
-    if os.path.exists(filepath):
-        return pd.read_csv(filepath)
+    try:
+        records = sheet.get_all_records()
+        matched = [r for r in records if str(r.get("race_id")) == str(race_id)]
+        if matched:
+            return pd.DataFrame(matched)
+    except Exception as e:
+        st.warning(f"キャッシュ読み込みエラー: {e}")
     return None
 
 def save_cached_result(race_id, df):
     df["race_id"] = race_id
-    all_values = sheet.get_all_values()
-    headers = all_values[0]
-    data_rows = all_values[1:]
+    try:
+        all_values = sheet.get_all_values()
+        headers = all_values[0]
+        data_rows = all_values[1:]
+        if "race_id" in headers:
+            race_id_col_idx = headers.index("race_id")
+        else:
+            st.error("Google Sheets に 'race_id' 列がありません。")
+            return
+        rows_to_delete = [i + 2 for i, row in enumerate(data_rows)
+                          if len(row) > race_id_col_idx and row[race_id_col_idx] == race_id]
+        if rows_to_delete:
+            requests = [{"deleteDimension": {
+                "range": {
+                    "sheetId": sheet.id,
+                    "dimension": "ROWS",
+                    "startIndex": row - 1,
+                    "endIndex": row
+                }}} for row in sorted(rows_to_delete, reverse=True)]
+            sheet.spreadsheet.batch_update({"requests": requests})
+            time.sleep(1.0)
+        sheet.append_rows(df.values.tolist(), value_input_option="USER_ENTERED")
+    except Exception as e:
+        st.error(f"キャッシュ保存エラー: {e}")
 
-    if "race_id" in headers:
-        race_id_col_idx = headers.index("race_id")
-    else:
-        st.error("Google Sheetsのヘッダーに 'race_id' 列がありません。")
-        return
-
-    rows_to_delete = [
-        i + 2 for i, row in enumerate(data_rows)
-        if len(row) > race_id_col_idx and row[race_id_col_idx] == race_id
-    ]
-
-    if rows_to_delete:
-        requests = [
-            {
-                "deleteDimension": {
-                    "range": {
-                        "sheetId": sheet.id,
-                        "dimension": "ROWS",
-                        "startIndex": row_num - 1,
-                        "endIndex": row_num,
-                    }
-                }
-            }
-            for row_num in sorted(rows_to_delete, reverse=True)
-        ]
-        sheet.spreadsheet.batch_update({"requests": requests})
-        time.sleep(1.0)
-
-    sheet.append_rows(df.values.tolist(), value_input_option="USER_ENTERED")
-    df.to_csv(get_cache_filename(race_id), index=False)
-
-# === UI ===
+# === Streamlit UI ===
 st.title("ウマ娘血統🐎サーチ")
 
 schedule_df = pd.read_csv("jra_2025_keibabook_schedule.csv")
 schedule_df["日付"] = pd.to_datetime(
     schedule_df["年"].astype(str) + "/" + schedule_df["月日(曜日)"].str.extract(r"(\d{2}/\d{2})")[0],
-    format="%Y/%m/%d"
-)
+    format="%Y/%m/%d")
 
 today = pd.Timestamp.today()
 past_31 = today - pd.Timedelta(days=31)
@@ -164,8 +148,8 @@ future_7 = today + pd.Timedelta(days=7)
 schedule_df = schedule_df[schedule_df["日付"].between(past_31, future_7)]
 
 dates = sorted(schedule_df["日付"].dt.strftime("%Y-%m-%d").unique(), reverse=True)
-st.markdown("### 📅 競馬開催日を選択")
-selected_date = st.selectbox("（直近30日前後の開催まで遡って表示できます。）", dates)
+st.markdown("### 📅 開催日を選択")
+selected_date = st.selectbox("（過去31日〜未来7日）", dates)
 data_filtered = schedule_df[schedule_df["日付"].dt.strftime("%Y-%m-%d") == selected_date]
 
 st.markdown("### 🌎 競馬場を選択")
@@ -182,14 +166,14 @@ place = st.session_state.place
 if not place:
     st.stop()
 
-st.markdown("### 🏍️ レース番号を選択")
-race_num_int = st.selectbox("レース番号を選んでください", list(range(1, 13)), format_func=lambda x: f"{x}R")
+st.markdown("### 🏁 レース番号を選択")
+race_num_int = st.selectbox("レース番号", list(range(1, 13)), format_func=lambda x: f"{x}R")
 if not race_num_int:
     st.stop()
 
 filtered = data_filtered[data_filtered["競馬場"] == place]
 if filtered.empty:
-    st.warning(f"⚠ {place} 競馬のレース情報が見つかりませんでした。")
+    st.warning(f"⚠ {place} の情報が見つかりません")
     st.stop()
 
 selected_row = filtered.iloc[0]
@@ -199,31 +183,27 @@ dd = f"{int(selected_row['日目']):02d}"
 race_id = f"{selected_row['年']}{jj}{kk}{dd}{race_num_int:02d}"
 st.markdown(f"**race_id**: {race_id}")
 
-# 検索状態のセッション管理
-if "search_state" not in st.session_state:
-    st.session_state.search_state = {"race_id": None, "use_cache": True, "triggered": False}
-
-use_cache = st.radio("キャッシュが存在する場合の動作", ["再利用する", "常に最新を取得する"], horizontal=True)
+use_cache = st.radio("キャッシュ使用", ["再利用する", "常に最新取得"], horizontal=True)
 use_cache_bool = use_cache == "再利用する"
 
-if st.button("🔍 ウマ娘血統の馬サーチを開始"):
+if st.button("🔍 ウマ娘血統サーチ開始"):
     st.session_state.search_state = {
         "race_id": race_id,
         "use_cache": use_cache_bool,
         "triggered": True,
     }
 
-search_state = st.session_state.search_state
-if search_state["triggered"] and search_state["race_id"] == race_id:
-    cached_df = load_cached_result(race_id) if search_state["use_cache"] else None
+search_state = st.session_state.get("search_state", {})
+if search_state.get("triggered") and search_state.get("race_id") == race_id:
+    cached_df = load_cached_result(race_id) if search_state.get("use_cache") else None
 
     if cached_df is not None:
         st.success(f"✅ キャッシュから {len(cached_df)}頭を表示")
         for idx, row in cached_df.iterrows():
             st.markdown(f"""
-<div style='font-size:20px; font-weight:bold;'>{idx + 1}. {row["馬名"]}</div>
-該当血統数：{row["該当数"]}<br>
-{row["該当箇所"]}
+<div style='font-size:20px; font-weight:bold;'>{idx + 1}. {row['馬名']}</div>
+該当血統数：{row['該当数']}<br>
+{row['該当箇所']}
 """, unsafe_allow_html=True)
             st.markdown("---")
     else:
@@ -238,15 +218,15 @@ if search_state["triggered"] and search_state["race_id"] == race_id:
                     st.markdown(f"""
 <div style='font-size:20px; font-weight:bold;'>{idx}. {name}</div>
 該当血統数：{len(matches)}<br>
-{ "<br>".join(matches) if matches else "該当なし" }
+{'<br>'.join(matches) if matches else '該当なし'}
 """, unsafe_allow_html=True)
                     result_rows.append({
                         "馬名": name,
                         "該当数": len(matches),
-                        "該当箇所": "<br>".join(matches) if matches else "該当なし"
+                        "該当箇所": '<br>'.join(matches) if matches else "該当なし"
                     })
                 except Exception as e:
-                    st.error(f"{name} の照合中にエラーが発生しました：{e}")
+                    st.error(f"{name} の照合中にエラー: {e}")
             st.markdown("---")
             time.sleep(1.2)
         if result_rows:
