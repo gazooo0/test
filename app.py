@@ -167,7 +167,6 @@ if not place:
 
 st.markdown("### 🏁 レース番号を選択")
 race_num_int = st.selectbox("レース番号", list(range(1, 13)), format_func=lambda x: f"{x}R")
-
 st.markdown("""
 <div style='line-height: 1.2; font-size: 0.9em; color: gray;'>
 <b>●「重賞」(GⅢ・GⅡ・GⅠ)はメインレースとして11Rに行われます。<br><br>
