@@ -115,7 +115,19 @@ def load_cached_result(race_id):
 
 def save_cached_result(race_id, df):
     df["race_id"] = race_id
+
+    # 既存データの削除（race_idが一致するもの）
+    records = sheet.get_all_records()
+    indices_to_delete = [i for i, r in enumerate(records) if r["race_id"] == race_id]
+    
+    # 注意：行番号は1ベース、ヘッダーが1行目にあるので +2 する
+    for idx in reversed(indices_to_delete):  # 後ろから削除（インデックスずれ防止）
+        sheet.delete_rows(idx + 2)
+
+    # 新しいデータを追加
     sheet.append_rows(df.values.tolist(), value_input_option="USER_ENTERED")
+    
+    # ローカル保存（CSV）も更新
     df.to_csv(get_cache_filename(race_id), index=False)
 
 # === UI ===
