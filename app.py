@@ -168,8 +168,8 @@ if not place:
 st.markdown("### 🏁 レース番号を選択")
 race_num_int = st.selectbox("レース番号", list(range(1, 13)), format_func=lambda x: f"{x}R")
 st.markdown("""
-<div style='line-height: 1.5; font-size: 1em; color: white;'>
-<b>●「重賞」(GⅢ・GⅡ・GⅠ)はメインレースとして11Rに行われます。<br>
+<div style='line-height: 1.5; font-size: 0,8em; color: gray;'>
+<b>● 「重賞」(GⅢ・GⅡ・GⅠ)はメインレースとして11Rに行われます。<br>
 ●　避暑期間（新潟・中京：7/26(土)～8/17(日)）のメインは7Rです。</b><br>
 ●　検索時に情報公開されていれば特別登録馬や出走想定馬のサーチも可能です。<br><br>
 </div>
@@ -184,8 +184,13 @@ if filtered.empty:
     st.stop()
 
 st.markdown("### 💾 キャッシュの利用")
+
+# ✅ st.radio の後に値を取得してから使う
+use_cache = st.radio("", ["利用する", "最新情報を取得する"], horizontal=True)
+use_cache_bool = use_cache == "利用する"
+
 st.markdown("""
-<div style='line-height: 1.5; font-size: 1em; color: white;'>
+<div style='line-height: 1.5; font-size: 0.8em; color: gray;'>
 <b>基本的には「利用する」を選択してください。</b><br>
 過去に誰かが1回でも検索していればすぐ結果を表示できます。<br><br>
 下記のタイミングの時は古い情報を参照する可能性があるため<br>
@@ -200,10 +205,6 @@ st.markdown("""
   ■枠順確定：レース前日の11時前後
 </div>
 """, unsafe_allow_html=True)
-
-# ✅ st.radio の後に値を取得してから使う
-use_cache = st.radio("", ["利用する", "最新情報を取得する"], horizontal=True)
-use_cache_bool = use_cache == "利用する"
 
 if st.button("🔍 ウマ娘血統サーチ開始"):
     st.session_state.search_state = {
