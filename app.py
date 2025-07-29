@@ -167,9 +167,15 @@ if not place:
 
 st.markdown("### 🏁 レース番号を選択")
 race_num_int = st.selectbox("レース番号", list(range(1, 13)), format_func=lambda x: f"{x}R")
-st.caption("●「重賞」(GⅢ・GⅡ・GⅠ)はメインレースとして11Rに行われます。")
-st.caption("●　避暑期間（新潟・中京：7/26(土)～8/17(日)）のメインは7Rです。")
-st.caption("●　検索時に情報公開されていれば特別登録馬や出走想定馬のサーチも可能です。")
+
+st.markdown("""
+<div style='line-height: 1.2; font-size: 0.9em; color: gray;'>
+<b>●「重賞」(GⅢ・GⅡ・GⅠ)はメインレースとして11Rに行われます。<br><br>
+●　避暑期間（新潟・中京：7/26(土)～8/17(日)）のメインは7Rです。</b><br><br>
+●　検索時に情報公開されていれば特別登録馬や出走想定馬のサーチも可能です。
+</div>
+""", unsafe_allow_html=True)
+
 if not race_num_int:
     st.stop()
 
@@ -179,20 +185,18 @@ if filtered.empty:
     st.stop()
 
 st.markdown("### 💾 キャッシュの利用")
-use_cache = st.radio("", ["利用する", "最新情報を取得する"], horizontal=True)
 
 st.markdown("""
 <div style='line-height: 1.2; font-size: 0.9em; color: gray;'>
-<b>基本的には「利用する」を選択してください。過去に誰かが1回でも検索していればすぐ結果を表示します。<br>
-下記のタイミングの時は古い情報を参照する可能性があるため「最新情報を取得する」を選択してください。</b>
+<b>基本的には「利用する」を選択してください。過去に誰かが1回でも検索していればすぐ結果を表示します。<br><br>
+下記のタイミングの時は古い情報を参照する可能性があるため「最新情報を取得する」を選択してください。</b><br><br>
 ■特別登録：前週日曜日の18時前後（G1レースは前々週に特別登録となりますが対応していません）<br>
 ■出走想定：水曜日の20時前後<br>
 ■出走確定：木曜日の19時前後<br>
 ■枠順確定：レース前日の11時前後
 </div>
+use_cache = st.radio("", ["利用する", "最新情報を取得する"], horizontal=True)
 """, unsafe_allow_html=True)
-
-
 
 use_cache_bool = use_cache == "利用する"
 
